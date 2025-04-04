@@ -1,10 +1,14 @@
 .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
   width: 250px;
-  background: #0a0a0a;
-  color: white;
   height: 100vh;
+  background: #f8f9fa; /* Light gray background */
+  color: #333; /* Dark gray text */
   padding: 20px;
   transition: width 0.3s;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Soft shadow */
 }
 
 .sidebar.collapsed {
@@ -14,9 +18,10 @@
 .toggle-btn {
   background: none;
   border: none;
-  color: white;
+  color: #007bff; /* Blue icon color */
   cursor: pointer;
   font-size: 18px;
+  margin-bottom: 10px;
 }
 
 .menu-list {
@@ -24,12 +29,22 @@
   padding: 0;
 }
 
-.menu-item {
-  cursor: pointer;
-  padding: 10px 0;
+.menu-list li {
+  padding: 10px;
 }
 
-.submenu {
-  padding-left: 20px;
-  list-style: none;
+.menu-list li a {
+  text-decoration: none;
+  color: #007bff; /* Blue links */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.menu-list li a:hover {
+  background: #e3f2fd; /* Light blue hover */
+  border-radius: 8px;
+  padding: 10px;
+  transition: background 0.3s;
 }
