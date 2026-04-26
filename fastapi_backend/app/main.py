@@ -22,8 +22,41 @@ from pydantic import BaseModel
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 TESSERACT_CMD = os.getenv("TESSERACT_CMD", "").strip()
+
+# Models we'll automatically try in order if the configured one fails with
+# a quota (429 / RESOURCE_EXHAUSTED) or "not found" (404 / NOT_FOUND) error.
+# This means a Gemini key that lacks one model will silently use the next.
+_GEMINI_FALLBACK_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-flash-latest",
+]
+
+
+def _build_model_chain() -> List[str]:
+    chain = [GEMINI_MODEL] if GEMINI_MODEL else []
+    for m in _GEMINI_FALLBACK_MODELS:
+        if m and m not in chain:
+            chain.append(m)
+    return chain
+
+
+# Cached "model that worked last time" so we don't burn quota retrying every
+# call. Starts as None and is populated after the first successful call.
+_active_model: Optional[str] = None
+
+
+def _is_quota_error(msg: str) -> bool:
+    return "RESOURCE_EXHAUSTED" in msg or "429" in msg or "quota" in msg.lower()
+
+
+def _is_not_found_error(msg: str) -> bool:
+    return "NOT_FOUND" in msg or "404" in msg or "not found" in msg.lower()
 
 # Auto-detect tesseract: try env var, then ~/.local/bin/tesseract, then PATH.
 def _resolve_tesseract() -> Optional[str]:
@@ -73,58 +106,94 @@ def get_gemini_client():
         return None
 
 
-def _gemini_generate(prompt: str) -> str:
+def _try_gemini(client, model: str, contents) -> str:
+    """One attempt against a specific Gemini model. Raises on failure so the
+    caller can decide whether to fall through to the next model."""
+    response = client.models.generate_content(model=model, contents=contents)
+    return getattr(response, "text", "") or "(no response)"
+
+
+def _gemini_generate_with_fallback(contents) -> str:
+    """Try the configured Gemini model, then fall back through a sane list
+    of free-tier models if we hit a quota (429) or model-not-available (404)
+    error. Caches the first working model so subsequent calls don't pay the
+    same retry cost."""
+    global _active_model
+
     client = get_gemini_client()
     if client is None:
         return (
             "Gemini API key is not configured. Set GEMINI_API_KEY in "
             "fastapi_backend/.env to enable AI replies."
         )
-    try:
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
+
+    chain = _build_model_chain()
+    if _active_model and _active_model in chain:
+        # Promote the cached working model to the front of the chain.
+        chain = [_active_model] + [m for m in chain if m != _active_model]
+
+    last_error: Optional[str] = None
+    quota_seen = False
+    for model in chain:
+        try:
+            text = _try_gemini(client, model, contents)
+            if model != _active_model:
+                print(f"[PharmaHub AI] Using Gemini model: {model}")
+                _active_model = model
+            return text
+        except Exception as exc:
+            msg = str(exc)
+            last_error = msg
+            if _is_quota_error(msg):
+                quota_seen = True
+                print(f"[PharmaHub AI] Quota exhausted on {model}, trying next…")
+                continue
+            if _is_not_found_error(msg):
+                print(f"[PharmaHub AI] Model {model} not available for this key, trying next…")
+                continue
+            # Any other error - bail out, don't burn through the rest of the chain.
+            return f"AI service error: {exc}"
+
+    if quota_seen:
+        return (
+            "AI quota exhausted on every available Gemini model for this key. "
+            "Wait a minute and retry, or generate a fresh API key from a new "
+            "Google AI Studio project (https://aistudio.google.com/app/apikey)."
         )
-        return getattr(response, "text", "") or "(no response)"
-    except Exception as exc:
-        msg = str(exc)
-        if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
-            return (
-                "AI quota exhausted on this Gemini project. Either wait a "
-                "minute and retry, switch GEMINI_MODEL in fastapi_backend/.env "
-                "to a model with available free quota (e.g. gemini-1.5-flash, "
-                "gemini-1.5-flash-8b), or generate a fresh API key from a new "
-                "Google AI Studio project."
-            )
-        return f"AI service error: {exc}"
+    return f"AI service error: {last_error or 'no Gemini model worked'}"
+
+
+def _gemini_generate(prompt: str) -> str:
+    return _gemini_generate_with_fallback(prompt)
 
 
 def _gemini_vision_enhance(image_bytes: bytes, mime_type: str = "image/png") -> str:
     """Use Gemini Vision to (re-)read prescription text. Used as a fallback
     when Tesseract output is empty or clearly garbage."""
-    client = get_gemini_client()
-    if client is None:
+    if get_gemini_client() is None:
         return ""
     try:
         from google.genai import types  # type: ignore
-
-        instruction = (
-            "You are an OCR engine. Read this prescription image carefully and "
-            "transcribe ALL visible text (medicine names, dosages, instructions, "
-            "doctor notes, etc.). Return ONLY the raw text exactly as it appears, "
-            "preserving line breaks. Do not add commentary."
-        )
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=[
-                instruction,
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            ],
-        )
-        return (getattr(response, "text", "") or "").strip()
     except Exception as exc:
         print(f"[PharmaHub AI] Vision fallback failed: {exc}")
         return ""
+
+    instruction = (
+        "You are an OCR engine. Read this prescription image carefully and "
+        "transcribe ALL visible text (medicine names, dosages, instructions, "
+        "doctor notes, etc.). Return ONLY the raw text exactly as it appears, "
+        "preserving line breaks. Do not add commentary."
+    )
+    contents = [
+        instruction,
+        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+    ]
+    text = _gemini_generate_with_fallback(contents)
+    # The fallback helper returns user-facing error strings on hard failure;
+    # for vision we'd rather return "" so the caller knows OCR failed.
+    if text.startswith("AI ") or text.startswith("Gemini "):
+        return ""
+    return text.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +356,9 @@ def root():
         "tesseract_available": bool(_TESS_PATH),
         "tesseract_path": _TESS_PATH or None,
         "gemini_configured": bool(GEMINI_API_KEY),
-        "gemini_model": GEMINI_MODEL,
+        "gemini_model_preferred": GEMINI_MODEL,
+        "gemini_model_active": _active_model,
+        "gemini_model_chain": _build_model_chain(),
     }
 
 
