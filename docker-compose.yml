@@ -1,0 +1,77 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: pharmahub-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fastapi:
+    build:
+      context: ./fastapi_backend
+      dockerfile: Dockerfile
+    container_name: pharmahub-fastapi
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./fastapi_backend/.env
+    environment:
+      - PORT=8001
+    volumes:
+      - ./fastapi_backend/app:/app/app
+    command: ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pharmahub-backend
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb://mongo:27017/pharmahub
+      - AI_API_URL=http://fastapi:8001
+      - CLIENT_URL=http://localhost:5173
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      mongo:
+        condition: service_healthy
+      fastapi:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pharmahub-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./frontend/.env
+    environment:
+      - VITE_API_URL=http://localhost:5001
+      - VITE_AI_API_URL=http://localhost:8001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+      - fastapi
+
+volumes:
+  mongo_data:
