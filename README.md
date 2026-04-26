@@ -8,8 +8,8 @@ PharmaBot chat experience.
 
 ```
 .
-├── backend/          # Node.js + Express + Mongoose API (port 5000)
-├── fastapi_backend/  # FastAPI + Tesseract + Gemini AI service (port 8000)
+├── backend/          # Node.js + Express + Mongoose API (port 5001)
+├── fastapi_backend/  # FastAPI + Tesseract + Gemini AI service (port 8001)
 └── frontend/         # React + Vite SPA (port 5173)
 ```
 
@@ -72,7 +72,7 @@ mkdir -p data log
 ### `backend/.env`
 
 ```env
-PORT=5000
+PORT=5001
 MONGO_URI=mongodb://localhost:27017/pharmahub
 JWT_SECRET=please_change_me_to_a_long_random_string
 JWT_EXPIRATION=7d
@@ -87,7 +87,7 @@ CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
 # FastAPI AI service URL
-AI_API_URL=http://localhost:8000
+AI_API_URL=http://localhost:8001
 ```
 
 ### `fastapi_backend/.env`
@@ -103,8 +103,8 @@ GEMINI_API_KEY=your_gemini_key_here
 ### `frontend/.env`
 
 ```env
-VITE_API_URL=http://localhost:5000
-VITE_AI_API_URL=http://localhost:8000
+VITE_API_URL=http://localhost:5001
+VITE_AI_API_URL=http://localhost:8001
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
@@ -146,18 +146,18 @@ sudo systemctl start mongod
   --port 27017 --bind_ip 127.0.0.1 --fork
 ```
 
-### Terminal 2 — Node API (port 5000)
+### Terminal 2 — Node API (port 5001)
 
 ```bash
 cd backend && npm run dev
 ```
 
-### Terminal 3 — FastAPI AI (port 8000)
+### Terminal 3 — FastAPI AI (port 8001)
 
 ```bash
 cd fastapi_backend
 source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
 ### Terminal 4 — Frontend (port 5173)
@@ -173,9 +173,9 @@ Open <http://localhost:5173>.
 ## 5. Quick health checks
 
 ```bash
-curl http://localhost:5000/api/health
-curl http://localhost:8000/                    # tesseract_available, gemini_configured
-curl http://localhost:5000/api/stripe/status   # configured: true/false
+curl http://localhost:5001/api/health
+curl http://localhost:8001/                    # tesseract_available, gemini_configured
+curl http://localhost:5001/api/stripe/status   # configured: true/false
 ```
 
 ---

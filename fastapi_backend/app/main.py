@@ -212,9 +212,13 @@ def validate_and_extract_medicines(text: str) -> str:
         "medicine output ONE line in the EXACT pipe-separated format:\n"
         "- <Medicine name with strength> | qty: <integer> | price: <integer rupees>\n\n"
         "Rules:\n"
-        "1. qty = total tablets/capsules/units to dispense. Infer from "
-        "dose * frequency * duration (e.g. '1 tablet twice daily for 5 days' -> qty: 10). "
-        "Default to qty: 1 if unsure.\n"
+        "1. qty rules - read CAREFULLY:\n"
+        "   - If the prescription clearly specifies BOTH the per-day dose AND "
+        "the duration (e.g. '1 tab twice daily for 5 days' -> qty: 10), compute "
+        "qty = dose * frequency * duration.\n"
+        "   - If dose, frequency OR duration is missing/unclear/not mentioned, "
+        "ALWAYS use qty: 1 (i.e. one pack / one strip). Do NOT guess a longer "
+        "course. This is a strict rule.\n"
         "2. price = a reasonable estimated retail price in INR (Indian rupees) for "
         "that total quantity in India. Use a realistic round number (no decimals, no symbol). "
         "Default to price: 50 if you genuinely cannot estimate.\n"
@@ -226,13 +230,19 @@ def validate_and_extract_medicines(text: str) -> str:
 
 
 def parse_medicine_lines(response_text: str) -> List[dict]:
-    """Parse `- Name | qty: N | price: P` lines into structured items."""
+    """Parse `[- ]Name | qty: N | price: P` lines into structured items.
+
+    Gemini is supposed to prefix each line with `- `, but it sometimes drops
+    the bullet, so accept both forms. We treat any line that contains the
+    pipe-separated `qty:` / `price:` markers as a medicine row.
+    """
     items: List[dict] = []
     for raw in response_text.split("\n"):
         line = raw.strip()
-        if not line.startswith("-"):
+        if not line:
             continue
-        body = line.lstrip("- ").strip()
+        # Strip any leading bullet/number markers Gemini might prepend.
+        body = re.sub(r"^[-*\d.\s]+", "", line).strip()
         if "(none detected)" in body.lower() or not body:
             continue
 
@@ -244,6 +254,10 @@ def parse_medicine_lines(response_text: str) -> List[dict]:
             re.IGNORECASE,
         )
 
+        # Skip lines that have neither marker - they're not medicine rows.
+        if not qty_match and not price_match:
+            continue
+
         qty = max(1, int(qty_match.group(1))) if qty_match else 1
         price = float(price_match.group(1)) if price_match else 0.0
 
@@ -251,7 +265,8 @@ def parse_medicine_lines(response_text: str) -> List[dict]:
         cuts = [m.start() for m in [qty_match, price_match] if m]
         name = body[: min(cuts)].strip(" |") if cuts else body
 
-        items.append({"name": name, "quantity": qty, "price": price})
+        if name:
+            items.append({"name": name, "quantity": qty, "price": price})
     return items
 
 

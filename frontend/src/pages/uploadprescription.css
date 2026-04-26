@@ -176,6 +176,26 @@
   gap: 12px;
 }
 
+.rx-items-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rx-items-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-mute);
+}
+
+.rx-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+}
+
 .rx-table {
   width: 100%;
   border-collapse: collapse;
@@ -191,6 +211,7 @@
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  vertical-align: middle;
 }
 
 .rx-table thead th {
@@ -217,8 +238,177 @@
   font-variant-numeric: tabular-nums;
 }
 
+.rx-input {
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+
+.rx-input:focus {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+.rx-input.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rx-row-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-mute);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 160ms var(--ease), color 160ms var(--ease),
+    border-color 160ms var(--ease);
+}
+
+.rx-row-remove:hover {
+  background: #fee2e2;
+  color: var(--danger);
+  border-color: #fecaca;
+}
+
+.btn.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+/* ---------- Cart prompt modal ---------- */
+
+.rx-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 1000;
+  animation: rx-fade 160ms var(--ease);
+}
+
+.rx-modal {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(15, 23, 42, 0.25));
+  padding: 24px 24px 20px;
+  animation: rx-pop 220ms var(--ease);
+}
+
+.rx-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--text-mute);
+}
+
+.rx-modal-close:hover {
+  color: var(--text);
+}
+
+.rx-modal-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+}
+
+.rx-modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.rx-modal-sub {
+  color: var(--text-mute);
+  font-size: 0.92rem;
+  margin: 0 0 14px;
+  line-height: 1.45;
+}
+
+.rx-modal-table-wrap {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.rx-modal-table-wrap .rx-table {
+  border: none;
+  font-size: 0.9rem;
+}
+
+.rx-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@keyframes rx-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rx-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 900px) {
   .upload-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .rx-modal {
+    padding: 18px 16px 16px;
+  }
+
+  .rx-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .rx-modal-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }

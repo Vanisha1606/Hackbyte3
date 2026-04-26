@@ -24,17 +24,17 @@ trap cleanup INT TERM EXIT
 
 PIDS=()
 
-echo "→ Starting Node API (backend) on :5000"
+echo "→ Starting Node API (backend) on :5001"
 (cd "$ROOT/backend" && npm run dev) > "$LOG_DIR/backend.log" 2>&1 &
 PIDS+=("$!")
 
-echo "→ Starting FastAPI AI service on :8000"
+echo "→ Starting FastAPI AI service on :8001"
 if [ -d "$ROOT/fastapi_backend/.venv" ]; then
   PY="$ROOT/fastapi_backend/.venv/bin/python"
 else
   PY="python3"
 fi
-(cd "$ROOT/fastapi_backend" && "$PY" -m uvicorn app.main:app --reload --port 8000) \
+(cd "$ROOT/fastapi_backend" && "$PY" -m uvicorn app.main:app --reload --port 8001) \
   > "$LOG_DIR/fastapi.log" 2>&1 &
 PIDS+=("$!")
 

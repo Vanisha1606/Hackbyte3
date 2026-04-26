@@ -11,5 +11,5 @@ module.exports = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || "",
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
-  AI_API_URL: process.env.AI_API_URL || "http://localhost:8000",
+  AI_API_URL: process.env.AI_API_URL || "http://localhost:8001",
 };

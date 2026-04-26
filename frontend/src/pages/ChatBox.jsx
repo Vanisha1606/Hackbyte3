@@ -44,7 +44,7 @@ const ChatBox = () => {
       setMessages((m) => [...m, { sender: "bot", text: r.data?.reply || "(no reply)" }]);
     } catch (e) {
       toast.error(
-        "PharmaBot is offline. Make sure FastAPI is running on :8000"
+        "PharmaBot is offline. Make sure FastAPI is running on :8001"
       );
     } finally {
       setBusy(false);
