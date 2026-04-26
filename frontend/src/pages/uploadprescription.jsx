@@ -16,8 +16,8 @@ import { addToCart } from "../utils/cart";
 import { useToast } from "../components/Toast";
 import "./uploadprescription.css";
 
-// Parse "- Name | qty: N" markdown into [{ name, quantity }] (fallback when
-// the AI service didn't return a structured array).
+// Parse "- Name | qty: N | price: P" markdown into [{ name, quantity, price }]
+// (fallback when the AI service didn't return a structured array).
 const parseValidatedToItems = (md) => {
   if (!md || typeof md !== "string") return [];
   return md
@@ -27,12 +27,15 @@ const parseValidatedToItems = (md) => {
     .map((l) => l.replace(/^-+\s*/, "").trim())
     .filter((l) => l && !l.toLowerCase().includes("(none detected)"))
     .map((line) => {
-      const m = line.match(/\|\s*qty:\s*(\d+)/i);
-      const qty = m ? Math.max(1, parseInt(m[1], 10)) : 1;
-      const name = m
-        ? line.slice(0, m.index).replace(/\|\s*$/, "").trim()
+      const qm = line.match(/\|\s*qty:\s*(\d+)/i);
+      const pm = line.match(/\|\s*price:\s*[^\d]*(\d+(?:\.\d+)?)/i);
+      const qty = qm ? Math.max(1, parseInt(qm[1], 10)) : 1;
+      const price = pm ? Number(pm[1]) : 0;
+      const cuts = [qm?.index, pm?.index].filter((x) => x != null);
+      const name = cuts.length
+        ? line.slice(0, Math.min(...cuts)).replace(/\|\s*$/, "").trim()
         : line;
-      return { name, quantity: qty };
+      return { name, quantity: qty, price };
     });
 };
 
@@ -172,12 +175,13 @@ const UploadPrescription = () => {
           );
           matched += 1;
         } else {
+          const aiPrice = Number(it.price) > 0 ? Number(it.price) : 50;
           addToCart(
             {
               id: `rx-${(it.name || "med").toLowerCase().replace(/\s+/g, "-")}`,
               name: it.name,
-              description: "From prescription (price pending)",
-              price: 0,
+              description: "AI-estimated price (from prescription)",
+              price: aiPrice,
               image: "",
             },
             Number(it.quantity) || 1
@@ -201,11 +205,22 @@ const UploadPrescription = () => {
   const promptAddToCart = (items) => {
     if (!items?.length) return;
     setTimeout(() => {
-      const list = items
-        .map((i) => `• ${i.name} (x${i.quantity})`)
-        .join("\n");
+      const lines = items.map((i) => {
+        const price = Number(i.price) || 0;
+        const qty = Number(i.quantity) || 1;
+        const sub = price > 0 ? ` — ₹${price * qty}` : "";
+        return `• ${i.name}  ×${qty}${sub}`;
+      });
+      const total = items.reduce(
+        (acc, it) =>
+          acc + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+        0
+      );
+      const totalLine = total > 0 ? `\n\nEstimated total: ₹${total}` : "";
       const ok = window.confirm(
-        `We found ${items.length} medicine(s) on your prescription:\n\n${list}\n\nAdd them all to your cart?`
+        `We found ${items.length} medicine(s) on your prescription:\n\n${lines.join(
+          "\n"
+        )}${totalLine}\n\nAdd them all to your cart?`
       );
       if (ok) addItemsNow(items);
     }, 250);
@@ -334,14 +349,53 @@ const UploadPrescription = () => {
             <ReactMarkdown>{result.validated || "_None_"}</ReactMarkdown>
             {result.items?.length > 0 && (
               <div className="rx-items">
-                <ul className="rx-items-list">
-                  {result.items.map((it, i) => (
-                    <li key={i}>
-                      <span>{it.name}</span>
-                      <span className="rx-qty">x{it.quantity}</span>
-                    </li>
-                  ))}
-                </ul>
+                <table className="rx-table">
+                  <thead>
+                    <tr>
+                      <th>Medicine</th>
+                      <th>Quantity</th>
+                      <th>Price (₹)</th>
+                      <th>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.items.map((it, i) => {
+                      const price = Number(it.price) || 0;
+                      const qty = Number(it.quantity) || 1;
+                      return (
+                        <tr key={i}>
+                          <td>{it.name}</td>
+                          <td className="num">{qty}</td>
+                          <td className="num">
+                            {price > 0 ? `₹${price}` : "—"}
+                          </td>
+                          <td className="num">
+                            {price > 0 ? `₹${price * qty}` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3} className="num">
+                        <strong>Total (estimated)</strong>
+                      </td>
+                      <td className="num">
+                        <strong>
+                          ₹
+                          {result.items.reduce(
+                            (acc, it) =>
+                              acc +
+                              (Number(it.price) || 0) *
+                                (Number(it.quantity) || 1),
+                            0
+                          )}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
                 <button
                   className="btn btn-primary"
                   disabled={adding}

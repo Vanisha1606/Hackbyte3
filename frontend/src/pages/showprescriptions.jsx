@@ -73,12 +73,15 @@ const ShowPrescriptions = () => {
       .map((l) => l.replace(/^-+\s*/, "").trim())
       .filter((l) => l && !l.toLowerCase().includes("(none detected)"))
       .map((line) => {
-        const m = line.match(/\|\s*qty:\s*(\d+)/i);
-        const qty = m ? Math.max(1, parseInt(m[1], 10)) : 1;
-        const name = m
-          ? line.slice(0, m.index).replace(/\|\s*$/, "").trim()
+        const qm = line.match(/\|\s*qty:\s*(\d+)/i);
+        const pm = line.match(/\|\s*price:\s*[^\d]*(\d+(?:\.\d+)?)/i);
+        const qty = qm ? Math.max(1, parseInt(qm[1], 10)) : 1;
+        const price = pm ? Number(pm[1]) : 0;
+        const cuts = [qm?.index, pm?.index].filter((x) => x != null);
+        const name = cuts.length
+          ? line.slice(0, Math.min(...cuts)).replace(/\|\s*$/, "").trim()
           : line;
-        return { name, quantity: qty };
+        return { name, quantity: qty, price };
       });
   };
 
@@ -90,11 +93,25 @@ const ShowPrescriptions = () => {
       return;
     }
     const summary = list
-      .map((i) => `• ${i.name} (x${i.quantity})`)
+      .map((i) => {
+        const price = Number(i.price) || 0;
+        const qty = Number(i.quantity) || 1;
+        const sub = price > 0 ? ` — ₹${price * qty}` : "";
+        return `• ${i.name}  ×${qty}${sub}`;
+      })
       .join("\n");
-    if (!confirm(
-      `Add ${list.length} medicine(s) to your cart?\n\n${summary}`
-    )) return;
+    const total = list.reduce(
+      (acc, it) =>
+        acc + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+      0
+    );
+    const totalLine = total > 0 ? `\n\nEstimated total: ₹${total}` : "";
+    if (
+      !confirm(
+        `Add ${list.length} medicine(s) to your cart?\n\n${summary}${totalLine}`
+      )
+    )
+      return;
     let catalog = [];
     try {
       const r = await api.get("/api/medicines");
@@ -126,12 +143,13 @@ const ShowPrescriptions = () => {
         );
         matched += 1;
       } else {
+        const aiPrice = Number(it.price) > 0 ? Number(it.price) : 50;
         addToCart(
           {
             id: `rx-${(it.name || "med").toLowerCase().replace(/\s+/g, "-")}`,
             name: it.name,
-            description: "From prescription (price pending)",
-            price: 0,
+            description: "AI-estimated price (from prescription)",
+            price: aiPrice,
             image: "",
           },
           Number(it.quantity) || 1

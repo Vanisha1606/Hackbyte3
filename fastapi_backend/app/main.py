@@ -209,20 +209,24 @@ def get_medicine_info(name: str) -> str:
 def validate_and_extract_medicines(text: str) -> str:
     prompt = (
         "Extract medicines from the following prescription text. For each "
-        "medicine output ONE line in the EXACT format:\n"
-        "- <Medicine name with strength> | qty: <integer>\n"
-        "where qty is the total number of tablets/capsules/units to dispense. "
-        "Infer qty from dose * frequency * duration when present "
-        "(e.g. '1 tablet twice daily for 5 days' -> qty: 10). "
-        "If you cannot determine a quantity, use qty: 1. Sentence case names. "
-        "If no medicines can be identified return exactly: '- (none detected)'.\n\n"
+        "medicine output ONE line in the EXACT pipe-separated format:\n"
+        "- <Medicine name with strength> | qty: <integer> | price: <integer rupees>\n\n"
+        "Rules:\n"
+        "1. qty = total tablets/capsules/units to dispense. Infer from "
+        "dose * frequency * duration (e.g. '1 tablet twice daily for 5 days' -> qty: 10). "
+        "Default to qty: 1 if unsure.\n"
+        "2. price = a reasonable estimated retail price in INR (Indian rupees) for "
+        "that total quantity in India. Use a realistic round number (no decimals, no symbol). "
+        "Default to price: 50 if you genuinely cannot estimate.\n"
+        "3. Sentence-case the names. One medicine per line. Nothing else, no headers.\n"
+        "4. If no medicines can be identified return exactly: '- (none detected)'.\n\n"
         f"Prescription Text:\n{text}"
     )
     return _gemini_generate(prompt)
 
 
 def parse_medicine_lines(response_text: str) -> List[dict]:
-    """Parse `- Name | qty: N` lines into structured items."""
+    """Parse `- Name | qty: N | price: P` lines into structured items."""
     items: List[dict] = []
     for raw in response_text.split("\n"):
         line = raw.strip()
@@ -231,12 +235,23 @@ def parse_medicine_lines(response_text: str) -> List[dict]:
         body = line.lstrip("- ").strip()
         if "(none detected)" in body.lower() or not body:
             continue
-        name, qty = body, 1
-        m = re.search(r"\|\s*qty:\s*(\d+)", body, re.IGNORECASE)
-        if m:
-            qty = max(1, int(m.group(1)))
-            name = body[: m.start()].strip(" |")
-        items.append({"name": name, "quantity": qty})
+
+        qty_match = re.search(r"\|\s*qty:\s*(\d+)", body, re.IGNORECASE)
+        # price may be 'price: 120', 'price: ₹120', 'price: Rs 120'
+        price_match = re.search(
+            r"\|\s*price:\s*[^\d]*(\d+(?:\.\d+)?)",
+            body,
+            re.IGNORECASE,
+        )
+
+        qty = max(1, int(qty_match.group(1))) if qty_match else 1
+        price = float(price_match.group(1)) if price_match else 0.0
+
+        # Strip the qty/price annotations from the displayed name.
+        cuts = [m.start() for m in [qty_match, price_match] if m]
+        name = body[: min(cuts)].strip(" |") if cuts else body
+
+        items.append({"name": name, "quantity": qty, "price": price})
     return items
 
 
