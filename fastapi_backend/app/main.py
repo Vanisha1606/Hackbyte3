@@ -208,13 +208,36 @@ def get_medicine_info(name: str) -> str:
 
 def validate_and_extract_medicines(text: str) -> str:
     prompt = (
-        "Extract medicine names from the following prescription text.\n"
-        "Return a Markdown bulleted list using dashes (-), one medicine per "
-        "line, sentence case. If no medicines can be identified return "
-        "exactly: '- (none detected)'.\n\n"
+        "Extract medicines from the following prescription text. For each "
+        "medicine output ONE line in the EXACT format:\n"
+        "- <Medicine name with strength> | qty: <integer>\n"
+        "where qty is the total number of tablets/capsules/units to dispense. "
+        "Infer qty from dose * frequency * duration when present "
+        "(e.g. '1 tablet twice daily for 5 days' -> qty: 10). "
+        "If you cannot determine a quantity, use qty: 1. Sentence case names. "
+        "If no medicines can be identified return exactly: '- (none detected)'.\n\n"
         f"Prescription Text:\n{text}"
     )
     return _gemini_generate(prompt)
+
+
+def parse_medicine_lines(response_text: str) -> List[dict]:
+    """Parse `- Name | qty: N` lines into structured items."""
+    items: List[dict] = []
+    for raw in response_text.split("\n"):
+        line = raw.strip()
+        if not line.startswith("-"):
+            continue
+        body = line.lstrip("- ").strip()
+        if "(none detected)" in body.lower() or not body:
+            continue
+        name, qty = body, 1
+        m = re.search(r"\|\s*qty:\s*(\d+)", body, re.IGNORECASE)
+        if m:
+            qty = max(1, int(m.group(1)))
+            name = body[: m.start()].strip(" |")
+        items.append({"name": name, "quantity": qty})
+    return items
 
 
 # ---------------------------------------------------------------------------
@@ -286,14 +309,13 @@ async def validate_prescription(data: dict):
     if not text.strip():
         return {"validated": "- (none detected)", "details": {}}
     response_text = validate_and_extract_medicines(text)
-    medicine_names = [
-        line.lstrip("- ").strip()
-        for line in response_text.split("\n")
-        if line.strip().startswith("-")
-        and "(none detected)" not in line.lower()
-    ]
-    info = {med: get_medicine_info(med) for med in medicine_names if med}
-    return {"validated": response_text, "details": info}
+    items = parse_medicine_lines(response_text)
+    info = {it["name"]: get_medicine_info(it["name"]) for it in items}
+    return {
+        "validated": response_text,
+        "details": info,
+        "medicines": items,
+    }
 
 
 @app.post("/medicine_info/")
