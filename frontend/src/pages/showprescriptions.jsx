@@ -8,8 +8,10 @@ import {
   Trash2,
   Loader2,
   ImageOff,
+  ShoppingCart,
 } from "lucide-react";
 import { api } from "../utils/api";
+import { addToCart } from "../utils/cart";
 import { useToast } from "../components/Toast";
 import "./showprescriptions.css";
 
@@ -60,6 +62,89 @@ const ShowPrescriptions = () => {
     } catch {
       toast.error("Couldn't delete");
     }
+  };
+
+  const parseValidatedToItems = (md) => {
+    if (!md || typeof md !== "string") return [];
+    return md
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("-"))
+      .map((l) => l.replace(/^-+\s*/, "").trim())
+      .filter((l) => l && !l.toLowerCase().includes("(none detected)"))
+      .map((line) => {
+        const m = line.match(/\|\s*qty:\s*(\d+)/i);
+        const qty = m ? Math.max(1, parseInt(m[1], 10)) : 1;
+        const name = m
+          ? line.slice(0, m.index).replace(/\|\s*$/, "").trim()
+          : line;
+        return { name, quantity: qty };
+      });
+  };
+
+  const addItemsToCart = async (rx) => {
+    let list = Array.isArray(rx?.items) ? rx.items : [];
+    if (!list.length) list = parseValidatedToItems(rx?.medicines);
+    if (!list.length) {
+      toast.info("No medicines could be extracted from this prescription.");
+      return;
+    }
+    const summary = list
+      .map((i) => `• ${i.name} (x${i.quantity})`)
+      .join("\n");
+    if (!confirm(
+      `Add ${list.length} medicine(s) to your cart?\n\n${summary}`
+    )) return;
+    let catalog = [];
+    try {
+      const r = await api.get("/api/medicines");
+      catalog = Array.isArray(r.data) ? r.data : [];
+    } catch {
+      catalog = [];
+    }
+    const findMatch = (name) => {
+      const n = (name || "").toLowerCase();
+      return catalog.find((m) => {
+        const mn = (m.med_name || "").toLowerCase();
+        return mn && (mn === n || n.includes(mn) || mn.includes(n));
+      });
+    };
+    let matched = 0;
+    let unmatched = 0;
+    for (const it of list) {
+      const m = findMatch(it.name);
+      if (m) {
+        addToCart(
+          {
+            id: m._id || m.id || `med-${m.med_name}`,
+            name: m.med_name,
+            description: m.med_desc || "",
+            price: Number(m.med_price) || 0,
+            image: m.image || "",
+          },
+          Number(it.quantity) || 1
+        );
+        matched += 1;
+      } else {
+        addToCart(
+          {
+            id: `rx-${(it.name || "med").toLowerCase().replace(/\s+/g, "-")}`,
+            name: it.name,
+            description: "From prescription (price pending)",
+            price: 0,
+            image: "",
+          },
+          Number(it.quantity) || 1
+        );
+        unmatched += 1;
+      }
+    }
+    toast.success(
+      unmatched
+        ? `Added ${matched + unmatched}. ${unmatched} need price confirmation.`
+        : `Added ${matched} item(s) to your cart.`
+    );
+    navigate("/cart");
   };
 
   return (
@@ -128,6 +213,12 @@ const ShowPrescriptions = () => {
                   <div className="rx-section">
                     <h4>Medicines</h4>
                     <ReactMarkdown>{p.medicines}</ReactMarkdown>
+                    <button
+                      className="btn btn-primary btn-sm rx-addcart"
+                      onClick={() => addItemsToCart(p)}
+                    >
+                      <ShoppingCart size={14} /> Add to cart
+                    </button>
                   </div>
                 )}
                 {p.extractedText && (

@@ -113,6 +113,10 @@
   }
 }
 
+.rx-addcart {
+  margin-top: 10px;
+}
+
 @media (max-width: 700px) {
   .rx-card {
     grid-template-columns: 1fr;

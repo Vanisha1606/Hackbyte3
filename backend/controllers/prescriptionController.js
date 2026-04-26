@@ -98,6 +98,7 @@ const uploadAndAnalyze = async (req, res) => {
       imagePublicId: image?.publicId || "",
       extractedText,
       medicines: validation.validated || "",
+      items: Array.isArray(validation.medicines) ? validation.medicines : [],
       details: validation.details || {},
       engine,
     });

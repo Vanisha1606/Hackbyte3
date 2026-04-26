@@ -12,6 +12,7 @@ const prescriptionSchema = new mongoose.Schema(
     imagePublicId: { type: String, default: "" },
     extractedText: { type: String, default: "" },
     medicines: { type: String, default: "" },
+    items: { type: Array, default: [] },
     details: { type: Object, default: {} },
     engine: { type: String, default: "" },
     notes: { type: String, default: "" },

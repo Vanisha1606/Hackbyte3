@@ -8,11 +8,33 @@ import {
   Sparkles,
   Trash2,
   History,
+  ShoppingCart,
 } from "lucide-react";
 import { api, aiApi } from "../utils/api";
 import { isAuthed } from "../utils/auth";
+import { addToCart } from "../utils/cart";
 import { useToast } from "../components/Toast";
 import "./uploadprescription.css";
+
+// Parse "- Name | qty: N" markdown into [{ name, quantity }] (fallback when
+// the AI service didn't return a structured array).
+const parseValidatedToItems = (md) => {
+  if (!md || typeof md !== "string") return [];
+  return md
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("-"))
+    .map((l) => l.replace(/^-+\s*/, "").trim())
+    .filter((l) => l && !l.toLowerCase().includes("(none detected)"))
+    .map((line) => {
+      const m = line.match(/\|\s*qty:\s*(\d+)/i);
+      const qty = m ? Math.max(1, parseInt(m[1], 10)) : 1;
+      const name = m
+        ? line.slice(0, m.index).replace(/\|\s*$/, "").trim()
+        : line;
+      return { name, quantity: qty };
+    });
+};
 
 const UploadPrescription = () => {
   const fileInput = useRef(null);
@@ -21,6 +43,7 @@ const UploadPrescription = () => {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [adding, setAdding] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -60,14 +83,21 @@ const UploadPrescription = () => {
           headers: { "Content-Type": "multipart/form-data" },
         });
         const saved = r.data || {};
-        setResult({
+        const items =
+          Array.isArray(saved.items) && saved.items.length
+            ? saved.items
+            : parseValidatedToItems(saved.medicines);
+        const next = {
           extracted: saved.extractedText || "",
           validated: saved.medicines || "",
           details: saved.details || {},
+          items,
           imageUrl: saved.imageUrl || preview,
           saved: true,
-        });
+        };
+        setResult(next);
         toast.success("Prescription saved to your history.");
+        promptAddToCart(items);
       } else {
         // Anonymous: hit FastAPI directly (nothing persisted)
         let extractedText = text;
@@ -80,14 +110,21 @@ const UploadPrescription = () => {
         const v = await aiApi.post("/validate_prescription/", {
           text: extractedText,
         });
-        setResult({
+        const items =
+          Array.isArray(v.data?.medicines) && v.data.medicines.length
+            ? v.data.medicines
+            : parseValidatedToItems(v.data?.validated);
+        const next = {
           extracted: extractedText,
           validated: v.data?.validated || "",
           details: v.data?.details || {},
+          items,
           imageUrl: preview,
           saved: false,
-        });
+        };
+        setResult(next);
         toast.success("Prescription analyzed (sign in to save it).");
+        promptAddToCart(items);
       }
     } catch (e) {
       toast.error(
@@ -98,6 +135,92 @@ const UploadPrescription = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const addItemsNow = async (items) => {
+    if (!items?.length) return;
+    setAdding(true);
+    try {
+      let catalog = [];
+      try {
+        const r = await api.get("/api/medicines");
+        catalog = Array.isArray(r.data) ? r.data : [];
+      } catch {
+        catalog = [];
+      }
+      const findMatch = (name) => {
+        const n = (name || "").toLowerCase();
+        return catalog.find((m) => {
+          const mn = (m.med_name || "").toLowerCase();
+          return mn && (mn === n || n.includes(mn) || mn.includes(n));
+        });
+      };
+      let matched = 0;
+      let unmatched = 0;
+      for (const it of items) {
+        const m = findMatch(it.name || "");
+        if (m) {
+          addToCart(
+            {
+              id: m._id || m.id || `med-${m.med_name}`,
+              name: m.med_name,
+              description: m.med_desc || "",
+              price: Number(m.med_price) || 0,
+              image: m.image || "",
+            },
+            Number(it.quantity) || 1
+          );
+          matched += 1;
+        } else {
+          addToCart(
+            {
+              id: `rx-${(it.name || "med").toLowerCase().replace(/\s+/g, "-")}`,
+              name: it.name,
+              description: "From prescription (price pending)",
+              price: 0,
+              image: "",
+            },
+            Number(it.quantity) || 1
+          );
+          unmatched += 1;
+        }
+      }
+      toast.success(
+        unmatched
+          ? `Added ${matched + unmatched} item(s). ${unmatched} need price confirmation.`
+          : `Added ${matched} item(s) to your cart.`
+      );
+      navigate("/cart");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // Auto-prompt right after analysis. Uses a tiny timeout so the result UI
+  // renders first before the confirm dialog steals focus.
+  const promptAddToCart = (items) => {
+    if (!items?.length) return;
+    setTimeout(() => {
+      const list = items
+        .map((i) => `• ${i.name} (x${i.quantity})`)
+        .join("\n");
+      const ok = window.confirm(
+        `We found ${items.length} medicine(s) on your prescription:\n\n${list}\n\nAdd them all to your cart?`
+      );
+      if (ok) addItemsNow(items);
+    }, 250);
+  };
+
+  const addExtractedToCart = () => {
+    const items = result?.items || [];
+    if (!items.length) return;
+    if (
+      !window.confirm(
+        `Add ${items.length} medicine(s) from this prescription to your cart?`
+      )
+    )
+      return;
+    addItemsNow(items);
   };
 
   return (
@@ -209,6 +332,26 @@ const UploadPrescription = () => {
           <div className="analysis-section">
             <h4>Identified medicines</h4>
             <ReactMarkdown>{result.validated || "_None_"}</ReactMarkdown>
+            {result.items?.length > 0 && (
+              <div className="rx-items">
+                <ul className="rx-items-list">
+                  {result.items.map((it, i) => (
+                    <li key={i}>
+                      <span>{it.name}</span>
+                      <span className="rx-qty">x{it.quantity}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="btn btn-primary"
+                  disabled={adding}
+                  onClick={addExtractedToCart}
+                >
+                  <ShoppingCart size={16} />{" "}
+                  {adding ? "Adding…" : "Add all to cart"}
+                </button>
+              </div>
+            )}
           </div>
           <div className="analysis-section">
             <h4>Medicine details</h4>
