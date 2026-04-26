@@ -1,66 +1,103 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { Mail, Lock, Sparkles, ArrowRight } from "lucide-react";
+import { api } from "../utils/api";
+import { setSession } from "../utils/auth";
+import { useToast } from "../components/Toast";
+import "./auth.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setLoading(true);
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        {
-          email,
-          password,
-        }
-      );
-
-      const { token } = response.data;
-      localStorage.setItem("token", token);
-      localStorage.setItem("userId", response.data.userId); // Store userId if needed
-      navigate("/home"); // Redirect to home page after successful login
-      alert("Login Successful!");
+      const { data } = await api.post("/auth/login", { email, password });
+      setSession({ token: data.token, userId: data.userId, user: data.user });
+      toast.success("Welcome back!");
+      navigate("/home");
     } catch (err) {
-      if (err.response && err.response.data.message) {
-        alert(err.response.data.message);
-      } else {
-        alert("Something went wrong.");
-      }
+      toast.error(err?.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-wrapper">
-      <div className="auth-container">
-        <div className="auth-box">
-          <h2 className="auth-title">Login</h2>
+    <div className="auth-shell">
+      <div className="auth-art">
+        <Link to="/" className="auth-logo">
+          <span className="auth-logo-mark">P+</span>
+          <span>PharmaHub</span>
+        </Link>
+        <div className="auth-art-content">
+          <span className="badge"><Sparkles size={12} /> AI-powered care</span>
+          <h2>Your prescriptions, decoded.</h2>
+          <p>
+            Login to upload prescriptions, schedule appointments, and chat with
+            PharmaBot — all in one beautifully simple place.
+          </p>
+          <ul className="auth-list">
+            <li>OCR + Gemini AI prescription analysis</li>
+            <li>Real-time medicine info & side-effects</li>
+            <li>One-tap pharmacy ordering</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="auth-form-wrap">
+        <div className="auth-card">
+          <h1 className="auth-title">Welcome back</h1>
+          <p className="auth-sub">Sign in to your PharmaHub account</p>
+
           <form className="auth-form" onSubmit={handleSubmit}>
-            <input
-              type="email"
-              placeholder="Email"
-              className="auth-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              className="auth-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <button type="submit" className="auth-button">
-              Login
+            <div className="field">
+              <label className="label">Email</label>
+              <div className="input-icon">
+                <Mail size={16} />
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="label">Password</label>
+              <div className="input-icon">
+                <Lock size={16} />
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              className="btn btn-primary btn-block btn-lg"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign in"}
+              {!loading && <ArrowRight size={16} />}
             </button>
           </form>
+
           <p className="auth-footer">
-            Don't have an account? <Link to="/signup">Sign Up</Link>
+            New here? <Link to="/signup">Create an account</Link>
           </p>
         </div>
       </div>

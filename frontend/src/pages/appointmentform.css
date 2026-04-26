@@ -1,0 +1,18 @@
+.appointment-card {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.appointment-card .grid-2-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 700px) {
+  .appointment-card .grid-2-cols {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,44 +1,89 @@
-import React from "react";
-import Sidebar from "../components/Sidebar";
+import { useNavigate } from "react-router-dom";
+import { Stethoscope, CalendarPlus } from "lucide-react";
 import "./timetable.css";
 
-const Timetable = () => {
-  return (
-    <div className="timetable-page">
-      <Sidebar />
+const doctors = [
+  {
+    name: "Dr. Aanya Sharma",
+    specialty: "Cardiologist",
+    day: "Monday & Thursday",
+    time: "10:00 AM – 2:00 PM",
+    rating: 4.9,
+  },
+  {
+    name: "Dr. Rohan Kapoor",
+    specialty: "Dermatologist",
+    day: "Wednesday",
+    time: "12:00 PM – 4:00 PM",
+    rating: 4.8,
+  },
+  {
+    name: "Dr. Meera Iyer",
+    specialty: "Pediatrician",
+    day: "Tuesday & Friday",
+    time: "9:00 AM – 1:00 PM",
+    rating: 4.95,
+  },
+  {
+    name: "Dr. Arjun Mehta",
+    specialty: "General Physician",
+    day: "Mon – Sat",
+    time: "5:00 PM – 9:00 PM",
+    rating: 4.7,
+  },
+];
 
-      <div className="container">
-        <h2 className="title">Doctor's Timetable</h2>
-        <table className="timetable">
-          <thead>
-            <tr>
-              <th>Doctor</th>
-              <th>Specialization</th>
-              <th>Day</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Dr. Smith</td>
-              <td>Cardiologist</td>
-              <td>Monday</td>
-              <td>10:00 AM - 2:00 PM</td>
-            </tr>
-            <tr>
-              <td>Dr. Johnson</td>
-              <td>Dermatologist</td>
-              <td>Wednesday</td>
-              <td>12:00 PM - 4:00 PM</td>
-            </tr>
-            <tr>
-              <td>Dr. Brown</td>
-              <td>Pediatrician</td>
-              <td>Friday</td>
-              <td>9:00 AM - 1:00 PM</td>
-            </tr>
-          </tbody>
-        </table>
+const Timetable = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Doctors' timetable</h1>
+          <p className="page-subtitle">
+            Browse availability and book in seconds.
+          </p>
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate("/appointment")}
+        >
+          <CalendarPlus size={16} /> New appointment
+        </button>
+      </div>
+
+      <div className="timetable-grid">
+        {doctors.map((d, i) => (
+          <div className="card card-hover doctor-card" key={i}>
+            <div className="doctor-icon">
+              <Stethoscope size={20} />
+            </div>
+            <div>
+              <h3>{d.name}</h3>
+              <span className="badge">{d.specialty}</span>
+              <ul className="doctor-meta">
+                <li>
+                  <strong>Day</strong>
+                  <span>{d.day}</span>
+                </li>
+                <li>
+                  <strong>Time</strong>
+                  <span>{d.time}</span>
+                </li>
+                <li>
+                  <strong>Rating</strong>
+                  <span>★ {d.rating}</span>
+                </li>
+              </ul>
+              <button
+                className="btn btn-secondary btn-block"
+                onClick={() => navigate("/appointment")}
+              >
+                Book appointment
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

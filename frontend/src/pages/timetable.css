@@ -1,54 +1,55 @@
-.timetable-page {
+.timetable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.doctor-card {
   display: flex;
-  min-height: 100vh;
-  background-color: #eef4fd; /* Light bluish background */
+  gap: 16px;
 }
 
-.container {
-  flex: 1;
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 30px 40px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1);
+.doctor-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
-.title {
-  text-align: center;
-  color: #1e3a8a; /* Deep blue */
-  font-size: 30px;
+.doctor-card h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.doctor-meta {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doctor-meta li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+}
+
+.doctor-meta strong {
   font-weight: 600;
-  margin-bottom: 30px;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
 }
 
-.timetable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 16px;
-  background-color: #f9fbff;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.timetable th,
-.timetable td {
-  border: 1px solid #d0d7e2;
-  padding: 14px;
-  text-align: left;
-}
-
-.timetable th {
-  background-color: #3b82f6; /* PharmaHub blue */
-  color: white;
-  font-weight: bold;
-}
-
-.timetable tr:nth-child(even) {
-  background-color: #f0f6ff; /* Light blue row */
-}
-
-.timetable tr:hover {
-  background-color: #e0ecff;
-  cursor: pointer;
+.doctor-meta span {
+  color: var(--text);
+  font-weight: 500;
 }

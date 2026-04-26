@@ -1,65 +1,67 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import "./AboutUs.css";
+import { Link } from "react-router-dom";
+import {
+  Sparkles,
+  Stethoscope,
+  Bot,
+  Pill,
+  CalendarDays,
+  ShieldCheck,
+  Boxes,
+  ArrowRight,
+} from "lucide-react";
+import "./aboutus.css";
+
+const FEATURES = [
+  { icon: Bot, title: "TTS-friendly chatbot", text: "PharmaBot answers in clean, accessible language." },
+  { icon: Pill, title: "Side-effect intelligence", text: "Pulled live from Gemini, written in plain words." },
+  { icon: Sparkles, title: "Handwriting + QR Rx", text: "OCR + AI converts both into structured data." },
+  { icon: ShieldCheck, title: "Valid prescription check", text: "Quickly flags missing or unsafe info." },
+  { icon: Boxes, title: "Inventory & ordering", text: "Order in one tap, track availability live." },
+  { icon: Stethoscope, title: "Doctor queue", text: "Book and prebook appointments without friction." },
+  { icon: CalendarDays, title: "Med scheduler", text: "Reminders that actually fit your day." },
+];
 
 const AboutUs = () => {
-  const navigate = useNavigate(); // Hook to handle navigation
-
   return (
-    <div className="about-page">
-      {/* Sidebar Component */}
-      <Sidebar />
-
-      {/* Main Content */}
-      <div className="about-container">
-        <div className="about-content">
-          <h1 className="about-title">
-            Welcome to <span>PharmaHub</span>
+    <div className="page">
+      <div className="about-hero card">
+        <div>
+          <span className="badge"><Sparkles size={12} /> Why PharmaHub</span>
+          <h1 className="page-title" style={{ marginTop: 8 }}>
+            Reshaping healthcare, <span className="gradient-text">one tap at a time</span>
           </h1>
-
-          <p className="about-description">
-            At <strong>PharmaHub</strong>, we are reshaping the future of healthcare through cutting-edge automation and AI. 
-            Our mission is to simplify your medical journey — whether it's understanding your prescriptions, booking doctor appointments, or ordering medicines — we’ve got it covered in just a few taps.
+          <p className="page-subtitle" style={{ maxWidth: 640 }}>
+            We blend AI, beautiful design, and clinical clarity to give you a
+            calmer, smarter medical experience — for patients and practitioners
+            alike.
           </p>
-
-          <p className="about-description">
-            Imagine uploading a handwritten prescription or a simple QR code and instantly getting details of the medicines, dosages, test suggestions, and the option to schedule your medication or place an order — all in one place.
-          </p>
-
-          <p className="about-description">
-            From AI-powered side effect analysis, valid prescription verification, to a fully stocked pharmacy inventory — we ensure you're informed, safe, and taken care of. Our secure login system, TTS-enabled chatbot, and intuitive interface make the experience smooth and accessible for everyone.
-          </p>
-
-          <div className="about-points">
-            <h2>Our Features:</h2>
-            <ul>
-              <li>🗣️ Voice-Accessible (TTS) Chatbot</li>
-              <li>💊 Medicine Details & Side Effects</li>
-              <li>📝 Handwritten Prescription to Text + QR Upload</li>
-              <li>📋 Valid Prescription Checker</li>
-              <li>📦 Inventory Management & One-Click Medicine Order</li>
-              <li>🏥 Doctor Appointment Queue Management</li>
-              <li>📆 Medicine Scheduler & Timetable</li>
-              <li>🔐 Secure Login System</li>
-              <li>📁 Prescription History Management</li>
-            </ul>
-          </div>
-
-          <p className="about-tagline">
-            Join us in redefining convenience, one prescription at a time.
-          </p>
-
-          <div className="about-cta">
-            <button className="cta-button" onClick={() => navigate("/")}>
-              Explore PharmaHub
-            </button>
+          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+            <Link to="/uploadprescription" className="btn btn-primary">
+              Try it now <ArrowRight size={16} />
+            </Link>
+            <Link to="/chatbot" className="btn btn-secondary">
+              Talk to PharmaBot
+            </Link>
           </div>
         </div>
+        <img src="/hero-image.svg" alt="" className="about-art" />
+      </div>
 
-        <div className="about-image">
-          {/* You can add an image here if needed */}
-        </div>
+      <h2 className="page-title" style={{ marginTop: 48 }}>
+        What's inside
+      </h2>
+      <p className="page-subtitle">A complete toolbox for modern pharmacy.</p>
+
+      <div className="about-grid">
+        {FEATURES.map((f, i) => (
+          <div className="card card-hover about-feature" key={i}>
+            <div className="tile-icon tinted-brand">
+              <f.icon size={20} />
+            </div>
+            <h3>{f.title}</h3>
+            <p>{f.text}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

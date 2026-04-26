@@ -1,16 +1,11 @@
 const jwt = require("jsonwebtoken");
-const express = require("express");
-//const { JWT_SECRET } = require('../config/config.js')
-//const { JWT_EXPIRATION } = require('../config/config.js')
-const dotenv = require("dotenv");
-dotenv.config();
+const config = require("./env");
 
 const generateToken = (user) => {
-  const payload = { id: user.id, email: user.email };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRATION,
+  const payload = { id: user._id, email: user.email };
+  return jwt.sign(payload, config.JWT_SECRET, {
+    expiresIn: config.JWT_EXPIRATION,
   });
-  return token;
 };
 
 module.exports = { generateToken };
