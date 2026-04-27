@@ -27,3 +27,4 @@ api.interceptors.response.use(
 
 export const NODE_API_URL = NODE_API;
 export const AI_API_URL = AI_API;
+console.log("API URL:", import.meta.env.VITE_API_URL);
